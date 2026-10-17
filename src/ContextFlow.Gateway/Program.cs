@@ -1,6 +1,8 @@
 using System.Text;
 using ContextFlow.Core.Interfaces;
+using ContextFlow.Gateway.Filters;
 using ContextFlow.Infrastructure.Data;
+using ContextFlow.Infrastructure.Redis;
 using ContextFlow.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +35,10 @@ if (!string.IsNullOrWhiteSpace(redisConnection))
     });
 }
 
-// Token service
+// Governance & policy providers
+builder.Services.AddSingleton(new System.Collections.Concurrent.ConcurrentDictionary<string, ContextFlow.Core.Entities.ToolPolicy>(StringComparer.OrdinalIgnoreCase));
+builder.Services.AddScoped<IToolPolicyProvider, RedisToolPolicyProvider>();
+builder.Services.AddSingleton<IRateLimiter, RedisRateLimiter>();
 builder.Services.AddScoped<IPatTokenService, PatTokenService>();
 
 // Authentication: HS256 JWT Bearer
@@ -91,11 +96,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// MCP Server registration with request authorization filters
+// MCP Server registration with request authorization and governance filters
 builder.Services.AddMcpServer()
     .WithHttpTransport()
     .WithToolsFromAssembly()
-    .AddAuthorizationFilters();
+    .AddAuthorizationFilters()
+    .WithRequestFilters(filters =>
+    {
+        // 3. Tool Policy Filter (list & call)
+        filters.AddListToolsFilter(ToolPolicyFilter.FilterListTools);
+        filters.AddCallToolFilter(ToolPolicyFilter.FilterCallTool);
+
+        // 4. Rate-Limit Filter (call)
+        filters.AddCallToolFilter(RateLimitFilter.FilterCallTool);
+    });
 
 var app = builder.Build();
 

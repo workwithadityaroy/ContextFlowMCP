@@ -41,6 +41,9 @@ public class ContextFlowWebApplicationFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IConnectionMultiplexer>();
 
+            services.RemoveAll<System.Collections.Concurrent.ConcurrentDictionary<string, ToolPolicy>>();
+            services.AddSingleton(new System.Collections.Concurrent.ConcurrentDictionary<string, ToolPolicy>(StringComparer.OrdinalIgnoreCase));
+
             services.AddDbContext<ContextFlowDbContext>(options =>
                 options.UseInMemoryDatabase(_dbName));
 
@@ -66,6 +69,29 @@ public class ContextFlowWebApplicationFactory : WebApplicationFactory<Program>
         var db = scope.ServiceProvider.GetRequiredService<ContextFlowDbContext>();
         db.Employees.Add(employee);
         db.SaveChanges();
+    }
+
+    public async Task SeedToolPolicyAsync(ToolPolicy policy, CancellationToken cancellationToken = default)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ContextFlowDbContext>();
+        var existing = await db.ToolPolicies.FindAsync([policy.ToolName], cancellationToken);
+        if (existing is not null)
+        {
+            existing.IsEnabled = policy.IsEnabled;
+            existing.MaxRequestsPerMinute = policy.MaxRequestsPerMinute;
+            existing.CacheTtlSeconds = policy.CacheTtlSeconds;
+            existing.AuditMode = policy.AuditMode;
+            existing.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        else
+        {
+            db.ToolPolicies.Add(policy);
+        }
+        await db.SaveChangesAsync(cancellationToken);
+
+        var policyProvider = scope.ServiceProvider.GetRequiredService<IToolPolicyProvider>();
+        await policyProvider.InvalidatePolicyCacheAsync(policy.ToolName, cancellationToken);
     }
 }
 
