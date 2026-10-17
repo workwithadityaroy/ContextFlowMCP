@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ContextFlow.Core/ContextFlow.Core.csproj" />
+    <Project Path="src/ContextFlow.Infrastructure/ContextFlow.Infrastructure.csproj" />
+    <Project Path="src/ContextFlow.Gateway/ContextFlow.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ContextFlow.UnitTests/ContextFlow.UnitTests.csproj" />
+    <Project Path="tests/ContextFlow.IntegrationTests/ContextFlow.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
+

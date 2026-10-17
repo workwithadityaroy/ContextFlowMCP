@@ -1,0 +1,63 @@
+# ==========================================
+# .NET Build & Test Artifacts
+# ==========================================
+bin/
+obj/
+TestResults/
+coverage/
+*.binlog
+
+# ==========================================
+# IDE & Editor Files (.vs, .vscode, JetBrains)
+# ==========================================
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# ==========================================
+# GitHub Files & Metadata
+# ==========================================
+.github/
+
+# ==========================================
+# AI Assistant & Agent Workflow Files
+# ==========================================
+.agents/
+AGENTS.md
+docs/ai-workflow.md
+tracker.html
+
+# ==========================================
+# Local Tooling & Configs (Excluded from GitHub)
+# ==========================================
+.editorconfig
+.config/
+global.json
+
+# ==========================================
+# Secrets & Local Configurations
+# ==========================================
+appsettings.Development.json
+appsettings.*.local.json
+.env
+.env.*
+!.env.example
+secrets.json
+
+# ==========================================
+# Node / Next.js Dashboard Build Artifacts
+# ==========================================
+node_modules/
+.next/
+out/
+web/.vercel/
+*.tsbuildinfo
+npm-debug.log*
+
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+Thumbs.db

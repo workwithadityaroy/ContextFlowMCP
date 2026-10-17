@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ContextFlow.Core\ContextFlow.Core.csproj" />
+  </ItemGroup>
+
+</Project>
