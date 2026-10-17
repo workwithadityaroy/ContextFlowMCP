@@ -63,12 +63,35 @@ public class ContextFlowWebApplicationFactory : WebApplicationFactory<Program>
         return await patService.MintTokenAsync(userId, name, roles, lifetime);
     }
 
+    public void EnsureDatabaseCreated()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ContextFlowDbContext>();
+        db.Database.EnsureCreated();
+    }
+
     public void SeedEmployee(Employee employee)
     {
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ContextFlowDbContext>();
-        db.Employees.Add(employee);
-        db.SaveChanges();
+        var existing = db.Employees.FirstOrDefault(e => e.EmployeeCode == employee.EmployeeCode);
+        if (existing is null)
+        {
+            db.Employees.Add(employee);
+            db.SaveChanges();
+        }
+    }
+
+    public void UpdateEmployeeJobTitle(string employeeCode, string newJobTitle)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ContextFlowDbContext>();
+        var existing = db.Employees.FirstOrDefault(e => e.EmployeeCode == employeeCode);
+        if (existing is not null)
+        {
+            existing.JobTitle = newJobTitle;
+            db.SaveChanges();
+        }
     }
 
     public async Task SeedToolPolicyAsync(ToolPolicy policy, CancellationToken cancellationToken = default)

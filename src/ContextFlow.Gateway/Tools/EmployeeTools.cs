@@ -11,7 +11,12 @@ namespace ContextFlow.Gateway.Tools;
 [McpServerToolType]
 public sealed class EmployeeTools
 {
-    [McpServerTool]
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        WriteIndented = true
+    };
+
+    [McpServerTool(ReadOnly = true)]
     [Authorize(Roles = "Admin,Finance")]
     [Description("Looks up a synthetic employee profile by EmployeeCode. Returns profile details. Available only to Admin and Finance roles.")]
     public static async Task<CallToolResult> GetEmployeeProfile(
@@ -50,8 +55,11 @@ public sealed class EmployeeTools
             employee.Department,
             employee.JobTitle,
             employee.SyntheticSalary,
-            employee.HireDate
-        });
+            employee.HireDate,
+            ManagerCode = (string?)null,
+            TerminationDate = (DateOnly?)null,
+            Notes = (string?)null
+        }, _jsonOptions);
 
         return new CallToolResult
         {

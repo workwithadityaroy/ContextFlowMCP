@@ -7,7 +7,7 @@ namespace ContextFlow.Gateway.Tools;
 [McpServerToolType]
 public sealed class EchoTool
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true)]
     [Description("Echoes the provided message back to the caller.")]
     public static CallToolResult Echo(
         [Description("The message to echo back")] string message,

@@ -13,7 +13,7 @@ public sealed partial class ExchangeRateTools
     [GeneratedRegex("^[A-Z]{3}$")]
     private static partial Regex CurrencyRegex();
 
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true)]
     [Authorize(Roles = "Admin,Developer,Finance")]
     [Description("Fetches mock foreign exchange rates for a standard ISO 4217 3-letter currency code (e.g. USD, EUR). Available to Admin, Developer, and Finance roles.")]
     public static CallToolResult FetchExternalExchangeRates(

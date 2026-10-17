@@ -12,7 +12,7 @@ namespace ContextFlow.Gateway.Tools;
 [McpServerToolType]
 public sealed class MetricsTools
 {
-    [McpServerTool]
+    [McpServerTool(ReadOnly = true)]
     [Authorize(Roles = "Admin,Developer")]
     [Description("Queries aggregate MCP server execution metrics (total calls, success rate, error count) from governance logs. Available only to Admin and Developer roles.")]
     public static async Task<CallToolResult> QuerySystemMetrics(

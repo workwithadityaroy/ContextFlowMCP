@@ -4,6 +4,7 @@ using ContextFlow.Gateway.Filters;
 using ContextFlow.Infrastructure.Data;
 using ContextFlow.Infrastructure.Redis;
 using ContextFlow.Infrastructure.Security;
+using ContextFlow.Infrastructure.Trimming;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -39,6 +40,8 @@ if (!string.IsNullOrWhiteSpace(redisConnection))
 builder.Services.AddSingleton(new System.Collections.Concurrent.ConcurrentDictionary<string, ContextFlow.Core.Entities.ToolPolicy>(StringComparer.OrdinalIgnoreCase));
 builder.Services.AddScoped<IToolPolicyProvider, RedisToolPolicyProvider>();
 builder.Services.AddSingleton<IRateLimiter, RedisRateLimiter>();
+builder.Services.AddSingleton<IResultCache, RedisResultCache>();
+builder.Services.AddSingleton<IContextTrimmer, JsonContextTrimmer>();
 builder.Services.AddScoped<IPatTokenService, PatTokenService>();
 
 // Authentication: HS256 JWT Bearer
@@ -109,6 +112,12 @@ builder.Services.AddMcpServer()
 
         // 4. Rate-Limit Filter (call)
         filters.AddCallToolFilter(RateLimitFilter.FilterCallTool);
+
+        // 5. Cache Filter (call) - outermost to Trim
+        filters.AddCallToolFilter(CacheFilter.FilterCallTool);
+
+        // 6. Trim Filter (call) - innermost to Cache so cache stores trimmed result
+        filters.AddCallToolFilter(TrimFilter.FilterCallTool);
     });
 
 var app = builder.Build();
