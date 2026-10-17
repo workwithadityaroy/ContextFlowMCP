@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -14,6 +13,8 @@ public sealed class EchoTool
         [Description("The message to echo back")] string message,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         return new CallToolResult
         {
             Content = [new TextContentBlock { Text = $"Echo: {message}" }]

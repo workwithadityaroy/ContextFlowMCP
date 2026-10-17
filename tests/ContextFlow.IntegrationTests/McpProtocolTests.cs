@@ -1,22 +1,22 @@
-using Microsoft.AspNetCore.Mvc.Testing;
+using System.Net.Http.Headers;
+using ContextFlow.IntegrationTests.Infrastructure;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
 namespace ContextFlow.IntegrationTests;
 
-public sealed class McpProtocolTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class McpProtocolTests(ContextFlowWebApplicationFactory factory)
+    : IClassFixture<ContextFlowWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
-
-    public McpProtocolTests(WebApplicationFactory<Program> factory)
-    {
-        _factory = factory;
-    }
+    private readonly ContextFlowWebApplicationFactory _factory = factory;
 
     [Fact]
-    public async Task CanConnectListToolsAndCallEchoTool()
+    public async Task CanConnectListToolsAndCallEchoToolWithAuthenticatedClient()
     {
+        var token = await _factory.MintTokenAsync("test-dev-user", "Dev Token", ["Developer"]);
         var httpClient = _factory.CreateClient();
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
         var transportOptions = new HttpClientTransportOptions
         {
             Endpoint = new Uri("http://localhost/mcp")
@@ -46,4 +46,3 @@ public sealed class McpProtocolTests : IClassFixture<WebApplicationFactory<Progr
         Assert.Equal("Echo: Integration Test", textContent.Text);
     }
 }
-

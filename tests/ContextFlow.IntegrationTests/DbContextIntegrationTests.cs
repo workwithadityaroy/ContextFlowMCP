@@ -1,19 +1,14 @@
 using ContextFlow.Core.Entities;
 using ContextFlow.Infrastructure.Data;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
+using ContextFlow.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ContextFlow.IntegrationTests;
 
-public sealed class DbContextIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class DbContextIntegrationTests(ContextFlowWebApplicationFactory factory)
+    : IClassFixture<ContextFlowWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
-
-    public DbContextIntegrationTests(WebApplicationFactory<Program> factory)
-    {
-        _factory = factory;
-    }
+    private readonly ContextFlowWebApplicationFactory _factory = factory;
 
     [Fact]
     public void DbContextsAreResolvableFromServiceContainer()
