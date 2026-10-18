@@ -1,5 +1,6 @@
 using System.Text;
 using ContextFlow.Core.Interfaces;
+using ContextFlow.Gateway.Admin;
 using ContextFlow.Gateway.Filters;
 using ContextFlow.Gateway.Tools;
 using ContextFlow.Infrastructure.Auditing;
@@ -136,6 +137,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddProblemDetails();
 
 // MCP Server registration with request authorization and governance filters
 builder.Services.AddMcpServer()
@@ -186,10 +188,14 @@ if (args.Length > 0 && args[0] == "mint-admin-token")
     return;
 }
 
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapMcp("/mcp").RequireAuthorization();
+app.MapAdminApi();
 
 app.Run();
 
