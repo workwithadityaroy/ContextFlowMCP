@@ -1,6 +1,7 @@
 using System.Text;
 using ContextFlow.Core.Interfaces;
 using ContextFlow.Gateway.Filters;
+using ContextFlow.Infrastructure.Auditing;
 using ContextFlow.Infrastructure.Data;
 using ContextFlow.Infrastructure.Redis;
 using ContextFlow.Infrastructure.Security;
@@ -43,6 +44,15 @@ builder.Services.AddSingleton<IRateLimiter, RedisRateLimiter>();
 builder.Services.AddSingleton<IResultCache, RedisResultCache>();
 builder.Services.AddSingleton<IContextTrimmer, JsonContextTrimmer>();
 builder.Services.AddScoped<IPatTokenService, PatTokenService>();
+builder.Services.AddSingleton<IAuditQueue, ChannelAuditQueue>();
+builder.Services.AddSingleton<IRedactor, RegexRedactor>();
+builder.Services.AddHostedService<AuditWriterService>();
+var auditRetentionDays = builder.Configuration.GetValue<int?>("Audit:RetentionDays") is > 0 and var days ? days : 30;
+builder.Services.AddHostedService(sp => new AuditRetentionService(
+    sp.GetRequiredService<IServiceScopeFactory>(),
+    sp.GetRequiredService<ILogger<AuditRetentionService>>(),
+    sp.GetService<TimeProvider>(),
+    auditRetentionDays));
 
 // Authentication: HS256 JWT Bearer
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "contextflow";
@@ -119,6 +129,14 @@ builder.Services.AddMcpServer()
         // 6. Trim Filter (call) - innermost to Cache so cache stores trimmed result
         filters.AddCallToolFilter(TrimFilter.FilterCallTool);
     });
+
+// 1. Audit Filter - Outermost filter in CallToolWithAlternateFilters (runs before AuthorizationFilters)
+builder.Services.PostConfigure<ModelContextProtocol.Server.McpServerOptions>(options =>
+{
+#pragma warning disable MCPEXP002
+    options.Filters.Request.CallToolWithAlternateFilters.Insert(0, AuditFilter.FilterCallToolWithAlternate);
+#pragma warning restore MCPEXP002
+});
 
 var app = builder.Build();
 

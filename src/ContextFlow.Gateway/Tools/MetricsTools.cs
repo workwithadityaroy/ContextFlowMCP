@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ContextFlow.Core.Enums;
+using ContextFlow.Core.Interfaces;
 using ContextFlow.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +15,10 @@ public sealed class MetricsTools
 {
     [McpServerTool(ReadOnly = true)]
     [Authorize(Roles = "Admin,Developer")]
-    [Description("Queries aggregate MCP server execution metrics (total calls, success rate, error count) from governance logs. Available only to Admin and Developer roles.")]
+    [Description("Queries aggregate MCP server execution metrics (total calls, success rate, error count, dropped audit records) from governance logs. Available only to Admin and Developer roles.")]
     public static async Task<CallToolResult> QuerySystemMetrics(
         ContextFlowDbContext dbContext,
+        IAuditQueue auditQueue,
         CancellationToken cancellationToken = default)
     {
         var totalCalls = await dbContext.ToolExecutionLogs
@@ -33,6 +35,7 @@ public sealed class MetricsTools
             totalLoggedCalls = totalCalls,
             totalErrors = errorCalls,
             successRate = totalCalls > 0 ? (double)(totalCalls - errorCalls) / totalCalls : 1.0,
+            droppedAuditRecords = auditQueue.DroppedRecordsCount,
             timestampUtc = DateTimeOffset.UtcNow
         });
 
