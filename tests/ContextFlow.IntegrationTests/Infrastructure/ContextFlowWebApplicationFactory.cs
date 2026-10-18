@@ -1,5 +1,6 @@
 using ContextFlow.Core.Entities;
 using ContextFlow.Core.Interfaces;
+using ContextFlow.Gateway.Tools;
 using ContextFlow.Infrastructure.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -49,8 +50,14 @@ public class ContextFlowWebApplicationFactory : WebApplicationFactory<Program>
 
             services.AddDbContext<ToolsReadOnlyDbContext>(options =>
                 options.UseInMemoryDatabase(_dbName));
+
+            // Offline upstream: replaces the SSRF-guarded primary handler (SSRF behavior is covered by unit tests).
+            services.AddHttpClient(ExchangeRateOptions.HttpClientName)
+                .ConfigurePrimaryHttpMessageHandler(() => ExchangeRateHandler);
         });
     }
+
+    public FakeExchangeRateHandler ExchangeRateHandler { get; } = new();
 
     public async Task<string> MintTokenAsync(
         string userId,

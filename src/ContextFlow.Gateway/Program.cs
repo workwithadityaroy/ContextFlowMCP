@@ -1,6 +1,7 @@
 using System.Text;
 using ContextFlow.Core.Interfaces;
 using ContextFlow.Gateway.Filters;
+using ContextFlow.Gateway.Tools;
 using ContextFlow.Infrastructure.Auditing;
 using ContextFlow.Infrastructure.Data;
 using ContextFlow.Infrastructure.Redis;
@@ -53,6 +54,33 @@ builder.Services.AddHostedService(sp => new AuditRetentionService(
     sp.GetRequiredService<ILogger<AuditRetentionService>>(),
     sp.GetService<TimeProvider>(),
     auditRetentionDays));
+
+// Outbound HTTP: SSRF-guarded client for the exchange-rate tool (resolved-IP validation, allowlist, no redirects)
+var exchangeRateSection = builder.Configuration.GetSection(ExchangeRateOptions.SectionName);
+builder.Services.Configure<ExchangeRateOptions>(exchangeRateSection);
+var exchangeRateOptions = exchangeRateSection.Get<ExchangeRateOptions>() ?? new ExchangeRateOptions();
+if (!Uri.TryCreate(exchangeRateOptions.BaseUrl, UriKind.Absolute, out var exchangeRateBaseUri)
+    || exchangeRateBaseUri.Scheme != Uri.UriSchemeHttps
+    || !string.IsNullOrEmpty(exchangeRateBaseUri.UserInfo)
+    || !string.IsNullOrEmpty(exchangeRateBaseUri.Query))
+{
+    throw new InvalidOperationException("Configuration 'ExchangeRate:BaseUrl' must be an absolute https URL without credentials or query string.");
+}
+
+var exchangeRateAllowedHosts = exchangeRateOptions.AllowedHosts is { Length: > 0 }
+    ? exchangeRateOptions.AllowedHosts
+    : [exchangeRateBaseUri.Host];
+if (!SsrfGuard.IsHostAllowed(exchangeRateBaseUri.Host, exchangeRateAllowedHosts))
+{
+    throw new InvalidOperationException("Configuration 'ExchangeRate:BaseUrl' host must be listed in 'ExchangeRate:AllowedHosts'.");
+}
+
+builder.Services.AddHttpClient(ExchangeRateOptions.HttpClientName, client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(exchangeRateOptions.TimeoutSeconds is > 0 and <= 60 ? exchangeRateOptions.TimeoutSeconds : 10);
+        client.MaxResponseContentBufferSize = 256 * 1024;
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => SsrfGuard.CreateHandler(exchangeRateAllowedHosts));
 
 // Authentication: HS256 JWT Bearer
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "contextflow";
@@ -128,6 +156,9 @@ builder.Services.AddMcpServer()
 
         // 6. Trim Filter (call) - innermost to Cache so cache stores trimmed result
         filters.AddCallToolFilter(TrimFilter.FilterCallTool);
+
+        // 7. Exception Filter (call) - innermost; converts thrown exceptions into generic, non-leaking error results
+        filters.AddCallToolFilter(ExceptionFilter.FilterCallTool);
     });
 
 // 1. Audit Filter - Outermost filter in CallToolWithAlternateFilters (runs before AuthorizationFilters)

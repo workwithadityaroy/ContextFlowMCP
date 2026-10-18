@@ -266,4 +266,125 @@ public sealed class RegexRedactorTests
         Assert.DoesNotContain("secret_escaped_123", result);
         Assert.DoesNotContain("escaped_pwd_456", result);
     }
+
+    [Fact]
+    public void RedactMultipleSecretsInOneStringRedactsEveryOccurrence()
+    {
+        // Arrange
+        const string input = "first password: alpha1 then second password: beta2 and apiKey=gamma3 plus Bearer tok.en-123";
+
+        // Act
+        var result = _redactor.Redact(input);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain("alpha1", result);
+        Assert.DoesNotContain("beta2", result);
+        Assert.DoesNotContain("gamma3", result);
+        Assert.DoesNotContain("tok.en-123", result);
+        Assert.Equal(2, CountOccurrences(result, "password: [REDACTED]"));
+        Assert.Contains("apiKey: [REDACTED]", result);
+        Assert.Contains("Bearer [REDACTED]", result);
+    }
+
+    [Theory]
+    [InlineData("BEARER abc123def456")]
+    [InlineData("bearer abc123def456")]
+    [InlineData("BeArEr abc123def456")]
+    public void RedactBearerSchemeIsCaseInsensitive(string input)
+    {
+        // Act
+        var result = _redactor.Redact(input);
+
+        // Assert
+        Assert.Equal("Bearer [REDACTED]", result);
+        Assert.DoesNotContain("abc123def456", result);
+    }
+
+    [Fact]
+    public void RedactJwtInsideJsonStringRedactsTokenAndKeepsJsonStructure()
+    {
+        // Arrange
+        const string jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+        var input = $$"""{"header":"Bearer {{jwt}}","user":"alice"}""";
+
+        // Act
+        var result = _redactor.Redact(input);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain(jwt, result);
+        Assert.DoesNotContain("SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c", result);
+        Assert.Equal("""{"header":"Bearer [REDACTED]","user":"alice"}""", result);
+    }
+
+    [Fact]
+    public void RedactPasswordInConnectionStringStyleExceptionTextRedactsPassword()
+    {
+        // Arrange
+        const string input = "Failed to connect to Host=db.internal;Database=contextflow;Username=svc;Password=hunter2";
+
+        // Act
+        var result = _redactor.Redact(input);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain("hunter2", result);
+        Assert.Contains("Password=[REDACTED]", result);
+    }
+
+    [Theory]
+    [InlineData("PASSWORD: UpperCaseSecret", "UpperCaseSecret")]
+    [InlineData("APIKEY=ABCDEF123", "ABCDEF123")]
+    [InlineData("Client_Secret: MixedCaseValue", "MixedCaseValue")]
+    public void RedactKeywordsAreCaseInsensitive(string input, string sensitiveValue)
+    {
+        // Act
+        var result = _redactor.Redact(input);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain(sensitiveValue, result);
+        Assert.Contains("[REDACTED]", result);
+    }
+
+    [Fact]
+    public void RedactAlreadyRedactedOutputIsIdempotent()
+    {
+        // Arrange
+        const string input = "Authorization: Bearer abc.def password: hunter2 card 4111-2222-3333-4444 ssn 123-45-6789";
+
+        // Act
+        var once = _redactor.Redact(input);
+        var twice = _redactor.Redact(once);
+
+        // Assert
+        Assert.Equal(once, twice);
+    }
+
+    [Fact]
+    public void RedactJsonWithoutSensitiveKeysButSimilarWordsIsUnchanged()
+    {
+        // Arrange
+        const string input = """{"note":"keep calm and carry on","amount":1234,"currency":"USD"}""";
+
+        // Act
+        var result = _redactor.Redact(input);
+
+        // Assert
+        Assert.Same(input, result);
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
+    }
 }
